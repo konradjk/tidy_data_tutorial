@@ -1,8 +1,9 @@
 library(dplyr)
 library(tidyr)
 library(magrittr)
-library(broom)
+library(ggplot2)
 
+# Random dataset of SAT scores and 5 random tests with random groups
 set.seed(1)
 points = 100
 messy_data <- tbl_df(data.frame(
@@ -15,24 +16,26 @@ messy_data <- tbl_df(data.frame(
   test4 = rnorm(n = points, mean = 90, sd = 1),
   test5 = rnorm(n = points, mean = 50, sd = 30)
 ))
+# Creating a correlated metric
 messy_data$correlated_test = jitter(messy_data$sat/32, 2000)
 
+# Various ways to convert from wide to long
 messy_data %>% 
   gather(test, score, c(test1, test2, test3, test4, test5, correlated_test))
-
 messy_data %>% 
   gather(test, score, test1:correlated_test)
+messy_data %>% 
+  gather(test, score, contains('test'))
 
 clean_data = messy_data %>% 
   gather(test, score, test1:correlated_test) %>%
   separate(info, into=c('group', 'sex'), sep='_')
 
-# can proceed with dplyr functions
+# dplyr functions
+clean_data %>% filter(group == 'group2')
 clean_data %>% sample_n(3) # Sample n entries
 
-clean_data %>% 
-  group_by(day) %>% 
-  summarize(mean = mean(score), sd = sd(score))
+# Group by creates groups that you can summarize nicely
 clean_data %>% 
   group_by(sex) %>% 
   summarize(mean = mean(score), sd = sd(score))
@@ -40,13 +43,17 @@ clean_data %>%
   group_by(test) %>% 
   summarize(mean = mean(score), sd = sd(score))
 
-ggplot(clean_data) + geom_point(aes(x = sat, y = score))
-ggplot(clean_data) + geom_point(aes(x = sat, y = score, col=test))
+# Finding the correlated test
+ggplot(clean_data) + geom_point(aes(x = sat, y = score), size = 3)
+ggplot(clean_data) + geom_point(aes(x = sat, y = score, col=test), size = 3)
 
+# Can spot it easily with group_by and then summarize(cor)
 clean_data %>%
   group_by(test) %>%
   summarize(correlation = cor(sat, score))
 
+# ...or use linear models!
+library(broom)
 clean_data %>%
   group_by(test) %>%
   do(tidy(lm(score ~ sat, data = .)))
@@ -61,6 +68,8 @@ all_fits %>% augment(fit)
 all_fits %>% glance(fit)
 
 
-
-
-
+clean_data$test %<>% as.character # Sending pipe contents back and storing them
+# Equivalent to clean_data$test = as.character(clean_data$test)
+  
+  
+  
